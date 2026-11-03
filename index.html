@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ROBERT · Control remoto</title>
+<style>
+:root{
+  --bg:#FFF9FB; --card:#FFFFFF; --soft:#FDF2F6; --line:#F3DCE4; --line2:#E8BFD0;
+  --pink:#DB2777; --fuchsia:#C2185B; --text:#2D1F26; --muted:#78656E;
+  --ok:#15803D; --okbg:#ECFDF3; --warn:#B45309; --warnbg:#FEF3C7; --err:#BE123C; --errbg:#FFE4E6;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);
+  line-height:1.45;padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}
+header{position:sticky;top:0;z-index:10;background:rgba(255,249,251,.94);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px}
+.bar{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:1.2rem;letter-spacing:-.02em}
+.pill{display:inline-block;margin-top:2px;padding:2px 10px;border-radius:99px;font-size:.75rem;font-weight:600}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.warn{background:var(--warnbg);color:var(--warn)} .pill.err{background:var(--errbg);color:var(--err)}
+.stop{border:0;background:linear-gradient(135deg,#E11D48,#BE123C);color:#fff;font-weight:700;font-size:.9rem;
+  padding:11px 22px;min-height:44px;border-radius:12px;box-shadow:0 6px 16px -4px rgba(190,18,60,.4)}
+.stop:active{transform:scale(.96)}
+main{max-width:520px;margin:0 auto;padding:16px;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 26px -12px rgba(194,24,91,.1)}
+.card h2{font-size:.95rem;margin-bottom:12px}
+label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:11px;border:1px solid var(--line2);border-radius:10px;font-size:1rem;background:#fff}
+.check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;color:var(--muted)}
+.btn{width:100%;margin-top:14px;padding:13px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--pink),var(--fuchsia));color:#fff;font-weight:600;font-size:1rem}
+.btn.sec{background:var(--soft);color:var(--fuchsia);border:1px solid var(--line2);margin-top:10px}
+.msg{margin-top:10px;font-size:.85rem;color:var(--err);min-height:1.2em}
+.hidden{display:none!important}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--soft);padding:6px;border-radius:14px;border:1px solid var(--line)}
+.modes button{border:0;background:transparent;color:var(--muted);font-weight:600;min-height:46px;border-radius:10px;font-size:.9rem}
+.modes button.on{background:linear-gradient(135deg,var(--pink),var(--fuchsia));color:#fff}
+.modes button:disabled{opacity:.45}
+.banner{margin-top:12px;padding:11px 14px;border-radius:12px;background:var(--errbg);color:var(--err);font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.banner button{border:1px solid var(--err);background:#fff;color:var(--err);border-radius:8px;padding:7px 12px;font-weight:600;min-height:36px}
+.dpad{display:grid;grid-template-columns:repeat(3,86px);grid-template-rows:repeat(3,78px);gap:10px;justify-content:center;margin-top:16px;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.pad{border:1px solid var(--line2);background:linear-gradient(180deg,#fff,var(--soft));border-radius:18px;font-weight:600;font-size:.72rem;color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;touch-action:none}
+.pad b{font-size:1.5rem;line-height:1;color:var(--fuchsia)}
+.pad.pressed{background:linear-gradient(135deg,#F06292,var(--pink));color:#fff;border-color:var(--pink);transform:scale(.95)}
+.pad.pressed b{color:#fff}
+.pad:disabled{opacity:.4}
+.hint{margin-top:12px;font-size:.78rem;color:var(--muted);text-align:center}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:var(--soft);border:1px solid #F8E5ED;border-radius:14px;padding:12px}
+.metric span{display:block;font-size:.74rem;color:var(--muted)}
+.metric strong{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.row{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid #F8EAF0;font-size:.85rem}
+.row span:first-child{color:var(--muted)}
+.link{background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;margin:4px auto 0;display:block}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div><h1>ROBERT</h1><span id="pill" class="pill err">Sin servidor</span></div>
+    <button id="btnStop" class="stop" type="button">STOP</button>
+  </div>
+</header>
+
+<main>
+  <!-- Acceso al servidor MQTT -->
+  <section id="login" class="card">
+    <h2>Conectar con ROBERT</h2>
+    <label for="host">Servidor (host de EMQX)</label>
+    <input id="host" type="text" placeholder="xxxxxxxx.emqxsl.com" autocapitalize="none" autocomplete="off">
+    <label for="user">Usuario</label>
+    <input id="user" type="text" autocapitalize="none" autocomplete="username">
+    <label for="pass">Contraseña</label>
+    <input id="pass" type="password" autocomplete="current-password">
+    <label class="check"><input id="remember" type="checkbox"> Recordar en este dispositivo</label>
+    <button id="btnConnect" class="btn" type="button">Conectar</button>
+    <p id="loginMsg" class="msg"></p>
+  </section>
+
+  <!-- Control -->
+  <section id="app" class="card hidden">
+    <h2>Modo y dirección</h2>
+    <div class="modes">
+      <button id="mAuto" type="button">Autónomo</button>
+      <button id="mMan" type="button">Manual</button>
+    </div>
+    <div id="bannerStop" class="banner hidden">
+      <span>Parada de emergencia activa.</span>
+      <button id="btnResume" type="button">Reanudar</button>
+    </div>
+    <div class="dpad">
+      <div></div><button class="pad" id="up" data-dir="FORWARD" disabled><b>↑</b>Avanzar</button><div></div>
+      <button class="pad" id="left" data-dir="LEFT" disabled><b>←</b>Izquierda</button>
+      <button class="pad" id="mid" disabled style="opacity:.0;border:0;background:none"></button>
+      <button class="pad" id="right" data-dir="RIGHT" disabled><b>→</b>Derecha</button>
+      <div></div><button class="pad" id="down" data-dir="BACKWARD" disabled><b>↓</b>Retroceder</button><div></div>
+    </div>
+    <p id="hint" class="hint">Cambia a modo manual para usar las flechas.</p>
+  </section>
+
+  <section id="tele" class="card hidden">
+    <h2>Sensores</h2>
+    <div class="grid">
+      <div class="metric"><span>Distancia</span><strong id="vDist">--</strong></div>
+      <div class="metric"><span>Ángulo del servo</span><strong id="vAng">--</strong></div>
+      <div class="metric"><span>Temperatura</span><strong id="vTemp">--</strong></div>
+      <div class="metric"><span>Humedad</span><strong id="vHum">--</strong></div>
+    </div>
+    <div class="row"><span>Estado</span><span id="vNav">--</span></div>
+    <div class="row"><span>Motores</span><span id="vMov">--</span></div>
+    <button id="btnLogout" class="link" type="button">Desconectar</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+(function(){
+  var T = { move:'robert/cmd/move', mode:'robert/cmd/mode', stop:'robert/cmd/stop',
+            resume:'robert/cmd/resume', status:'robert/status', online:'robert/online' };
+  var HOLD_MS = 150;            // reenvío mientras se mantiene presionada una flecha
+  var client = null, robotOnline = false, lastTele = 0, tele = null;
+  var holdTimer = null, holdDir = null;
+  var $ = function(id){ return document.getElementById(id); };
+
+  // ---------- recordar datos ----------
+  try {
+    var saved = JSON.parse(localStorage.getItem('robert') || 'null');
+    if (saved) {
+      $('host').value = saved.host || '';
+      $('user').value = saved.user || '';
+      $('pass').value = saved.pass || '';
+      $('remember').checked = true;
+    }
+  } catch(e) {}
+
+  function pub(topic, msg){
+    if (client && client.connected) client.publish(topic, msg, { qos: 0 });
+  }
+
+  // ---------- conexión ----------
+  function conectar(){
+    var raw = $('host').value.trim().replace(/^(wss?|mqtts?|https?):\/\//, '').replace(/\/.*$/, '');
+    var partes = raw.split(':');
+    var host = partes[0];
+    var puerto = partes[1] || '8084';
+    var user = $('user').value.trim();
+    var pass = $('pass').value;
+    if (!host || !user || !pass){ $('loginMsg').textContent = 'Completa servidor, usuario y contraseña.'; return; }
+
+    try {
+      if ($('remember').checked) localStorage.setItem('robert', JSON.stringify({host:raw,user:user,pass:pass}));
+      else localStorage.removeItem('robert');
+    } catch(e) {}
+
+    $('loginMsg').textContent = 'Conectando...';
+    if (client) { client.end(true); client = null; }
+
+    client = mqtt.connect('wss://' + host + ':' + puerto + '/mqtt', {
+      username: user, password: pass,
+      clientId: 'robert-web-' + Math.random().toString(16).slice(2, 8),
+      keepalive: 30, connectTimeout: 8000, reconnectPeriod: 3000, clean: true
+    });
+
+    client.on('connect', function(){
+      $('loginMsg').textContent = '';
+      $('login').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('tele').classList.remove('hidden');
+      client.subscribe([T.status, T.online]);
+      render();
+    });
+    client.on('message', function(topic, payload){
+      var s = payload.toString();
+      if (topic === T.online) { robotOnline = (s === '1'); }
+      else if (topic === T.status) {
+        try { tele = JSON.parse(s); lastTele = Date.now(); } catch(e) {}
+      }
+      render();
+    });
+    client.on('close', render);
+    client.on('error', function(err){
+      var m = String(err && err.message || err);
+      if (/not authorized|bad user/i.test(m)) {
+        $('loginMsg').textContent = 'Usuario o contraseña incorrectos.';
+        client.end(true); client = null;
+      } else {
+        $('loginMsg').textContent = 'No se pudo conectar. Revisa el servidor y tu internet.';
+      }
+    });
+  }
+
+  function desconectar(){
+    pararHold(true);
+    if (client) { client.end(true); client = null; }
+    robotOnline = false; tele = null;
+    $('app').classList.add('hidden');
+    $('tele').classList.add('hidden');
+    $('login').classList.remove('hidden');
+    render();
+  }
+
+  // ---------- estado en pantalla ----------
+  function vivo(){ return robotOnline && (Date.now() - lastTele < 4000); }
+
+  function render(){
+    var conectado = !!(client && client.connected);
+    var ok = conectado && vivo();
+    var pill = $('pill');
+    pill.textContent = !conectado ? 'Sin servidor' : (ok ? 'Robot en línea' : 'Robot sin respuesta');
+    pill.className = 'pill ' + (ok ? 'ok' : (conectado ? 'warn' : 'err'));
+
+    var manual = ok && tele && tele.mode === 'MANUAL';
+    ['up','down','left','right'].forEach(function(id){ $(id).disabled = !manual; });
+    if (!manual) pararHold(false);
+
+    $('mAuto').disabled = !ok; $('mMan').disabled = !ok;
+    $('mAuto').className = (tele && tele.mode === 'AUTONOMO') ? 'on' : '';
+    $('mMan').className  = (tele && tele.mode === 'MANUAL')   ? 'on' : '';
+    $('bannerStop').classList.toggle('hidden', !(ok && tele && tele.stop));
+
+    $('hint').textContent = !ok ? 'Esperando al robot...'
+      : (manual ? 'Mantén presionada una flecha. Al soltar se detiene.' : 'Cambia a modo manual para usar las flechas.');
+
+    if (tele) {
+      $('vDist').textContent = tele.dist != null ? tele.dist.toFixed(1) + ' cm' : 'Sin eco';
+      $('vAng').textContent  = tele.ang + '°';
+      $('vTemp').textContent = tele.temp != null ? tele.temp.toFixed(1) + ' °C' : '--';
+      $('vHum').textContent  = tele.hum  != null ? tele.hum + ' %' : '--';
+      $('vNav').textContent  = tele.nav || '--';
+      $('vMov').textContent  = tele.mov || '--';
+    }
+  }
+  setInterval(render, 1000);
+
+  // ---------- control ----------
+  function iniciarHold(dir, btn){
+    pararHold(false);
+    holdDir = dir;
+    btn.classList.add('pressed');
+    pub(T.move, dir);
+    holdTimer = setInterval(function(){ pub(T.move, dir); }, HOLD_MS);
+  }
+  function pararHold(enviarStop){
+    var habia = !!holdDir;
+    if (holdTimer) { clearInterval(holdTimer); holdTimer = null; }
+    holdDir = null;
+    document.querySelectorAll('.pad.pressed').forEach(function(b){ b.classList.remove('pressed'); });
+    if (enviarStop && habia) pub(T.move, 'STOP');
+  }
+
+  ['up','down','left','right'].forEach(function(id){
+    var b = $(id);
+    b.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    b.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if (b.disabled) return;
+      try { b.setPointerCapture(e.pointerId); } catch(_) {}
+      iniciarHold(b.getAttribute('data-dir'), b);
+    });
+    ['pointerup','pointercancel','lostpointercapture'].forEach(function(ev){
+      b.addEventListener(ev, function(e){ if (holdDir === b.getAttribute('data-dir')) pararHold(true); });
+    });
+  });
+
+  $('btnStop').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    pararHold(false);
+    pub(T.stop, '1');
+    pub(T.move, 'STOP');
+  });
+  $('mAuto').addEventListener('click', function(){ pararHold(false); pub(T.mode, 'AUTONOMO'); });
+  $('mMan').addEventListener('click',  function(){ pararHold(false); pub(T.mode, 'MANUAL'); });
+  $('btnResume').addEventListener('click', function(){ pub(T.resume, '1'); });
+  $('btnConnect').addEventListener('click', conectar);
+  $('btnLogout').addEventListener('click', desconectar);
+
+  window.addEventListener('blur', function(){ pararHold(true); });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) pararHold(true); });
+})();
+</script>
+</body>
+</html>
